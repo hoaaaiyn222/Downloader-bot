@@ -1,2 +1,6 @@
 python-telegram-bot==21.10
 youtube-dl
+pip install yt-dlp
+pandas
+numpy
+flask
