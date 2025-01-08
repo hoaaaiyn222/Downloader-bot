@@ -1,5 +1,4 @@
 python-telegram-bot==21.10
-youtube-dlp
 yt-dlp
 pandas
 numpy
