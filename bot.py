@@ -3,10 +3,6 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 import yt_dlp as youtube_dl
 from urllib.parse import urlparse
 
-# URL যাচাই করার ফাংশন
-def is_valid_url(url):
-    parsed_url = urlparse(url)
-    return parsed_url.scheme in ['http', 'https']
 
 # Start Command with Permanent Menu
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
