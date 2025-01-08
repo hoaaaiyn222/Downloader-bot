@@ -1,6 +1,12 @@
 from telegram import ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
-import youtube_dl
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
+import yt_dlp as youtube_dl
+from urllib.parse import urlparse
+
+# URL যাচাই করার ফাংশন
+def is_valid_url(url):
+    parsed_url = urlparse(url)
+    return parsed_url.scheme in ['http', 'https']
 
 # Start Command with Permanent Menu
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -17,6 +23,9 @@ async def handle_platform(update: Update, context: ContextTypes.DEFAULT_TYPE):
     platform = update.message.text.lower()
     supported_platforms = ["🎥 youtube", "📱 tiktok", "📘 facebook", "📷 instagram", "❌ এক্স (twitter)"]
 
+    # Reset previous platform and URL
+    context.user_data.clear()
+
     if platform in supported_platforms:
         context.user_data['platform'] = platform
         await update.message.reply_text(f"✅ {platform.upper()} সিলেক্ট করা হয়েছে। এখন ভিডিওর লিংক পাঠান।")
@@ -30,6 +39,11 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not platform:
         await update.message.reply_text("⚠️ প্ল্যাটফর্ম সিলেক্ট করুন। /start দিয়ে শুরু করুন।")
+        return
+
+    # URL যাচাই করুন
+    if not is_valid_url(url):
+        await update.message.reply_text("⚠️ অনুগ্রহ করে একটি বৈধ URL পাঠান।")
         return
 
     context.user_data['url'] = url
@@ -58,7 +72,7 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if quality == 'audio':
             ydl_opts = {
                 'format': 'bestaudio/best',
-                'outtmpl': 'audio.mp3',
+                'outtmpl': f'{context.user_data["platform"]}_{quality}_{url.split("=")[-1]}.mp3',
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
@@ -68,13 +82,13 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             ydl_opts = {
                 'format': f'bestvideo[height<={quality}]+bestaudio/best',
-                'outtmpl': 'video.mp4'
+                'outtmpl': f'{context.user_data["platform"]}_{quality}_{url.split("=")[-1]}.mp4'
             }
 
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        file_name = 'audio.mp3' if quality == 'audio' else 'video.mp4'
+        file_name = f'{context.user_data["platform"]}_{quality}_{url.split("=")[-1]}.mp4' if quality != 'audio' else f'{context.user_data["platform"]}_{quality}_{url.split("=")[-1]}.mp3'
         await query.message.reply_text("✅ ডাউনলোড সম্পন্ন! পাঠানো হচ্ছে...")
         await context.bot.send_document(chat_id=query.message.chat_id, document=open(file_name, 'rb'))
 
@@ -83,10 +97,10 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Main Function
 def main():
-    application = Application.builder().token("7968874233:AAFfkYyxZzu0iDLJ_acanYMwOEYVAL-Zqgg").build()
+    application = ApplicationBuilder().token("7968874233:AAFfkYyxZzu0iDLJ_acanYMwOEYVAL-Zqgg").build()
 
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters<.TEXT & ~filters.COMMAND, handle_platform))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_platform))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
     application.add_handler(CallbackQueryHandler(download_video, pattern='^(240|360|720|audio)$'))
 
